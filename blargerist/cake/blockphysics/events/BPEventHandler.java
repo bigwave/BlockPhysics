@@ -1,39 +1,35 @@
 package blargerist.cake.blockphysics.events;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Random;
+
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockFalling;
-import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.item.EntityFallingBlock;
 import net.minecraft.init.Blocks;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.MathHelper;
+import net.minecraft.util.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.event.world.BlockEvent.PlaceEvent;
-import blargerist.cake.blockphysics.ModInfo;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import blargerist.cake.blockphysics.util.BlockMove;
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 
 public class BPEventHandler
 {
 	static ArrayList<Block> tickingBlocks = new ArrayList<Block>();
 
-	public static void onNeighborBlockChange(World world, int x, int y, int z, Block blockNeighbor)
+	public static void onNeighborBlockChange(World world, BlockPos blockPos, Block blockNeighbor)
 	{
 		if (!world.isRemote)
 		{
-			Block block = world.getBlock(x, y, z);
+		    Block block = world.getBlockState(blockPos).getBlock();
 			Material material = block.getMaterial();
-			String blockName = Block.blockRegistry.getNameForObject(block);
 
-			if (material == Material.air || block.getBlockHardness(world, x, y, z) == -1.0F || material.isLiquid() || material.isReplaceable() || material == Material.plants || material == Material.portal)
+			if (material == Material.air || 
+				block.getBlockHardness(world, blockPos) == -1.0F || 
+				material.isLiquid() || 
+				material.isReplaceable() || 
+				material == Material.plants || 
+				material == Material.portal)
 			{
 				return;
 			}
@@ -41,38 +37,43 @@ public class BPEventHandler
 			if (!tickingBlocks.contains(block))
 			{
 				tickingBlocks.add(block);
-				world.scheduleBlockUpdate(x, y, z, block, block.tickRate(world));
+				world.scheduleUpdate(blockPos, block, block.tickRate(world));
 				tickingBlocks.remove(block);
 			}
 		}
 	}
 
-	@SubscribeEvent
-	public void onPlayerBlockPlace(PlaceEvent event)
-	{
-		event.world.scheduleBlockUpdate(event.x, event.y, event.z, event.block, event.block.tickRate(event.world));
-	}
+    @SubscribeEvent
+    public void onPlayerBlockPlace(PlaceEvent event)
+    {
+        event.world.scheduleUpdate(event.pos, event.state.getBlock(), event.state.getBlock().tickRate(event.world));
+    }
 
-	public static void onUpdateBlock(World world, int x, int y, int z, Random random)
+	public static void onUpdateBlock(World world, BlockPos blockPos, Random random)
 	{
 		if (!world.isRemote)
 		{
-			Block block = world.getBlock(x, y, z);
-			String blockName = Block.blockRegistry.getNameForObject(block);
+			Block block = world.getBlockState(blockPos).getBlock();
 			Material material = block.getMaterial();
-			if (material == Material.air || block.getBlockHardness(world, x, y, z) == -1.0F || material.isLiquid() || material.isReplaceable() || material == Material.plants || material == Material.portal)
+			if (material == Material.air || 
+				block.getBlockHardness(world, blockPos) == -1.0F || 
+				material.isLiquid() || 
+				material.isReplaceable() || 
+				material == Material.plants || 
+				material == Material.portal)
 			{
 				return;
 			}
-			BlockMove.fall(world, x, y, z);
+			BlockMove.fall(world, blockPos);
 		}
 	}
 
 	public static boolean func_149831_e(World p_149831_0_, int p_149831_1_, int p_149831_2_, int p_149831_3_)
 	{
-		Block block = p_149831_0_.getBlock(p_149831_1_, p_149831_2_, p_149831_3_);
+		BlockPos blockPos = new BlockPos(p_149831_1_, p_149831_2_, p_149831_3_);
+		Block block = p_149831_0_.getBlockState(blockPos).getBlock();
 
-		if (block.isAir(p_149831_0_, p_149831_1_, p_149831_2_, p_149831_3_))
+		if (block.isAir(p_149831_0_, blockPos))
 		{
 			return true;
 		}
@@ -89,6 +90,7 @@ public class BPEventHandler
 	
 	public static void onFragileBlockCollision(Entity entity, int x, int y, int z)
 	{
-		entity.worldObj.setBlockToAir(x, y, z);
+	    BlockPos blockPos = new BlockPos(x, y, z);
+		entity.worldObj.setBlockToAir(blockPos);
 	}
 }

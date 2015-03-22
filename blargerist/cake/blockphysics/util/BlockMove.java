@@ -1,33 +1,40 @@
 package blargerist.cake.blockphysics.util;
 
 import java.util.Random;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.item.EntityFallingBlock;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.MathHelper;
 import net.minecraft.world.World;
 import blargerist.cake.blockphysics.ModConfig;
-import blargerist.cake.blockphysics.ModInfo;
 
 public class BlockMove
 {
 	private static Random rand = new Random();
 
-	public static void fall(World world, int x, int y, int z)
+	public static void fall(World world, BlockPos inBlockPos)
 	{
+        int x = inBlockPos.getX();
+        int y = inBlockPos.getY();
+        int z = inBlockPos.getZ();
+        
 		if (!world.isRemote)
 		{
 			if (playersWithinRange(world, x, y, z))
 			{
 				byte b0 = 32;
-
-				if (world.checkChunksExist(x - b0, y - b0, z - b0, x + b0, y + b0, z + b0))
-				{
-					Block block = world.getBlock(x, y, z);
-					String blockName = Block.blockRegistry.getNameForObject(block);
-					int meta = world.getBlockMetadata(x, y, z);
+				BlockPos start = new BlockPos (x - b0, y - b0, z - b0);
+				BlockPos end = new BlockPos(x + b0, y + b0, z + b0);
+		        if (world.isAreaLoaded(start, end))
+		        {
+					Block block = world.getBlockState(inBlockPos).getBlock();
+					String blockName = Block.blockRegistry.getNameForObject(block).toString();
+					int meta = world.getBlockState(inBlockPos).getBlock().getMetaFromState(world.getBlockState(inBlockPos));
 					BlockDef blockDef = DefinitionMaps.getBlockDef(blockName, meta);
 
 					if (blockDef.canMove)
@@ -36,7 +43,7 @@ public class BlockMove
 						//TODO use an array to store blocks in the area as they are required, to cut down on use of world.getblock
 						if (!floating(world, x, y, z, moveDef.floatingRadius, moveDef.floatingBlock, moveDef.floatingMeta))
 						{
-							int canFall = canMoveTo(world, x, y - 1, z, blockDef.mass / 10);
+							int canFall = canMoveTo(world,x, y - 1 , z, blockDef.mass / 10);
 
 							if (canFall != 0 && (moveDef.moveType == 1 || moveDef.moveType == 2))
 							{
@@ -58,12 +65,17 @@ public class BlockMove
 														{
 															if (!moveDef.branch || !branch(world, x, y, z, blockName, meta))
 															{
-																EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																entityfallingblock.func_145806_a(blockDef.hurts);
+																EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, 
+																																(double) ((float) x + 0.5F), 
+																																(double) ((float) y + 0.5F), 
+																																(double) ((float) z + 0.5F), 
+																																block.getStateFromMeta(meta));
+																entityfallingblock.setHurtEntities (blockDef.hurts);
 																entityfallingblock.noClip = false;
 																if (canFall == 2)
 																{
-																	world.setBlockToAir(x, y - 1, z);
+																	BlockPos blockPosDownOne = new BlockPos(x, y - 1, z);
+																	world.setBlockToAir(blockPosDownOne);
 																}
 																world.spawnEntityInWorld(entityfallingblock);
 																return;
@@ -73,7 +85,8 @@ public class BlockMove
 												}
 											}
 										}
-									}}
+									}
+								}
 								}
 							}
 							else if (canFall == 0 && moveDef.moveType == 2 && moveDef.slideChance >= (rand.nextInt(100) + 1))
@@ -151,74 +164,56 @@ public class BlockMove
 																if (!moveDef.branch || !branch(world, x, y, z, blockName, meta))
 																{
 																	String direction = slideDirs[rand.nextInt(length)];
+																	double motionX = 0;
+																	double motionZ = 0;
 																	if (direction.equals("north"))
 																	{
-																		EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																		entityfallingblock.func_145806_a(blockDef.hurts);
-																		entityfallingblock.motionZ = 0.135;
-																		world.spawnEntityInWorld(entityfallingblock);
-																		return;
+																		motionZ = 0.135;
 																	}
 																	else if (direction.equals("south"))
 																	{
-																		EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																		entityfallingblock.func_145806_a(blockDef.hurts);
-																		entityfallingblock.motionZ = -0.135;
-																		world.spawnEntityInWorld(entityfallingblock);
-																		return;
+																		motionZ = -0.135;
 																	}
 																	else if (direction.equals("east"))
 																	{
-																		EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																		entityfallingblock.func_145806_a(blockDef.hurts);
-																		entityfallingblock.motionX = 0.135;
-																		world.spawnEntityInWorld(entityfallingblock);
-																		return;
+																		motionX = 0.135;
 																	}
 																	else if (direction.equals("west"))
 																	{
-																		EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																		entityfallingblock.func_145806_a(blockDef.hurts);
-																		entityfallingblock.motionX = -0.135;
-																		world.spawnEntityInWorld(entityfallingblock);
-																		return;
+																		motionX = -0.135;
 																	}
 																	else if (direction.equals("northeast"))
 																	{
-																		EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																		entityfallingblock.func_145806_a(blockDef.hurts);
-																		entityfallingblock.motionZ = 0.135;
-																		entityfallingblock.motionX = 0.135;
-																		world.spawnEntityInWorld(entityfallingblock);
-																		return;
+																		motionZ = 0.135;
+																		motionX = 0.135;
 																	}
 																	else if (direction.equals("northwest"))
 																	{
-																		EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																		entityfallingblock.func_145806_a(blockDef.hurts);
-																		entityfallingblock.motionZ = 0.135;
-																		entityfallingblock.motionX = -0.135;
-																		world.spawnEntityInWorld(entityfallingblock);
-																		return;
+																		motionZ = 0.135;
+																		motionX = -0.135;
 																	}
 																	else if (direction.equals("southeast"))
 																	{
-																		EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																		entityfallingblock.func_145806_a(blockDef.hurts);
-																		entityfallingblock.motionZ = -0.135;
-																		entityfallingblock.motionX = 0.135;
-																		world.spawnEntityInWorld(entityfallingblock);
-																		return;
+																		motionZ = -0.135;
+																		motionX = 0.135;
 																	}
 																	else if (direction.equals("southwest"))
 																	{
-																		EntityFallingBlock entityfallingblock = new EntityFallingBlock(world, (double) ((float) x + 0.5F), (double) ((float) y + 0.5F), (double) ((float) z + 0.5F), block, meta);
-																		entityfallingblock.func_145806_a(blockDef.hurts);
-																		entityfallingblock.motionZ = -0.135;
-																		entityfallingblock.motionX = -0.135;
-																		world.spawnEntityInWorld(entityfallingblock);
-																		return;
+																		motionZ = -0.135;
+																		motionX = -0.135;
 																	}
+																	
+																	EntityFallingBlock entityfallingblock = new EntityFallingBlock(world,
+																	                                                               (double) ((float) x + 0.5F), 
+																	                                                               (double) ((float) y + 0.5F), 
+																	                                                               (double) ((float) z + 0.5F), 
+																	                                                               block.getStateFromMeta(meta));
+																	entityfallingblock.motionZ = motionZ;
+                                                                    entityfallingblock.motionX = motionX;
+                                                                    entityfallingblock.setHurtEntities (blockDef.hurts);
+                                                                    world.spawnEntityInWorld(entityfallingblock);
+                                                                    return;
+
 																}
 															}
 														}
@@ -242,18 +237,20 @@ public class BlockMove
 
 	public static int canMoveTo(World world, int x, int y, int z, int mass)
 	{
-		Block block = world.getBlock(x, y, z);
+	    BlockPos blockPos = new BlockPos(x, y, z);
+		Block block = world.getBlockState(blockPos).getBlock();
 		if (block == Blocks.air)
 		{
 			return 1;
 		}
-		if (block.getBlockHardness(world, x, y, z) == -1)
+		if (block.getBlockHardness(world, blockPos) == -1)
 		{
 			return 0;
 		}
-		String blockName = Block.blockRegistry.getNameForObject(block);
-		int meta = world.getBlockMetadata(x, y, z);
-		BlockDef blockDef = DefinitionMaps.getBlockDef(blockName, meta);
+		Object blockName = Block.blockRegistry.getNameForObject(block);
+		String blockNameString = blockName.toString();
+		int meta = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
+		BlockDef blockDef = DefinitionMaps.getBlockDef(blockNameString, meta);
 		if ((blockDef.fragile > 0 && blockDef.strength < mass))
 		{
 			return 2;
@@ -284,7 +281,15 @@ public class BlockMove
 			{
 				for (int zz = z - radius; zz <= z + radius; zz++)
 				{
-					if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(xx, yy, zz)), world.getBlockMetadata(xx, yy, zz), blockName, meta))
+				    BlockPos blockPos = new BlockPos(xx, yy, zz);
+			        Block block = world.getBlockState(blockPos).getBlock();
+
+				    String otherBlockName = Block.blockRegistry.getNameForObject(block).toString();
+				    int otherMeta = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));   
+					if (sameBlock(otherBlockName, 
+					              otherMeta, 
+					              blockName, 
+					              meta))
 					{
 						return true;
 					}
@@ -306,8 +311,9 @@ public class BlockMove
 
 		for (int i = y; i < hanging; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x, i, z));
-			meta2 = world.getBlockMetadata(x, i, z);
+		    BlockPos blockPos = new BlockPos(x, i, z);
+			blockName2 = Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock()).toString();
+			meta2 = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
 			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
 			{
 				return true;
@@ -333,8 +339,9 @@ public class BlockMove
 
 		for (i = 1; i <= attached; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z));
-			meta2 = world.getBlockMetadata(x + i, y, z);
+		    BlockPos blockPos = new BlockPos(x + 1, y, z);
+			blockName2 = Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock()).toString();
+			meta2 = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
 			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
 			{
 				return true;
@@ -347,8 +354,9 @@ public class BlockMove
 		
 		for (i = 1; i <= attached; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z));
-			meta2 = world.getBlockMetadata(x - i, y, z);
+		    BlockPos blockPos = new BlockPos(x - i, y, z);
+			blockName2 = (String) Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock());
+			meta2 = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
 			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
 			{
 				return true;
@@ -361,8 +369,9 @@ public class BlockMove
 		
 		for (i = 1; i <= attached; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x, y, z + i));
-			meta2 = world.getBlockMetadata(x, y, z + i);
+            BlockPos blockPos = new BlockPos(x, y, z + i);
+            blockName2 = (String) Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock());
+			meta2 = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
 			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
 			{
 				return true;
@@ -375,8 +384,9 @@ public class BlockMove
 		
 		for (i = 1; i <= attached; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x, y, z - i));
-			meta2 = world.getBlockMetadata(x, y, z - i);
+            BlockPos blockPos = new BlockPos(x, y, z - i);
+            blockName2 = (String) Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock());
+            meta2 = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
 			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
 			{
 				return true;
@@ -399,9 +409,9 @@ public class BlockMove
 
 		for (i = 1; i <= nCorbel; i++)
 		{
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z)), world.getBlockMetadata(x - i, y, z)).supportiveBlock)
+			if (isSupportiveBlock(world, x - i, y, z))
 			{
-				if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z)), world.getBlockMetadata(x - i, y - 1, z)).supportiveBlock)
+				if (isSupportiveBlock(world, x - i, y - 1, z))
 				{
 					return true;
 				}
@@ -413,9 +423,9 @@ public class BlockMove
 		}
 		for (i = 1; i <= nCorbel; i++)
 		{
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z)), world.getBlockMetadata(x + i, y, z)).supportiveBlock)
+			if (isSupportiveBlock(world, x + i, y, z))
 			{
-				if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y - 1, z)), world.getBlockMetadata(x + i, y - 1, z)).supportiveBlock)
+				if (isSupportiveBlock(world, x + i, y - 1, z))
 				{
 					return true;
 				}
@@ -427,9 +437,9 @@ public class BlockMove
 		}
 		for (i = 1; i <= nCorbel; i++)
 		{
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z + i)), world.getBlockMetadata(x, y, z + i)).supportiveBlock)
+			if (isSupportiveBlock(world, x, y, z + i))
 			{
-				if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z + i)), world.getBlockMetadata(x, y - 1, z + i)).supportiveBlock)
+				if (isSupportiveBlock(world, x, y - 1, z + i))
 				{
 					return true;
 				}
@@ -441,9 +451,9 @@ public class BlockMove
 		}
 		for (i = 1; i <= nCorbel; i++)
 		{
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z - i)), world.getBlockMetadata(x, y, z - i)).supportiveBlock)
+			if (isSupportiveBlock(world, x, y, z - i))
 			{
-				if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z - i)), world.getBlockMetadata(x, y - 1, z - i)).supportiveBlock)
+				if (isSupportiveBlock(world, x, y - 1, z - i))
 				{
 					return true;
 				}
@@ -466,9 +476,9 @@ public class BlockMove
 
 		for (i = 1; i <= corbel; i++)
 		{
-			if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z)), world.getBlockMetadata(x + i, y, z), blockName, meta))
+			if (sameBlock(world, x + i, y, z, blockName, meta))
 			{
-				if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y - 1, z)), world.getBlockMetadata(x + i, y - 1, z), blockName, meta))
+				if (sameBlock(world, x + i, y - 1, z, blockName, meta))
 				{
 					return true;
 				}
@@ -480,9 +490,9 @@ public class BlockMove
 		}
 		for (i = 1; i <= corbel; i++)
 		{
-			if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z)), world.getBlockMetadata(x - i, y, z), blockName, meta))
+			if (sameBlock(world, x - i, y, z, blockName, meta))
 			{
-				if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z)), world.getBlockMetadata(x - i, y - 1, z), blockName, meta))
+				if (sameBlock(world, x - i, y - 1, z, blockName, meta))
 				{
 					return true;
 				}
@@ -494,9 +504,9 @@ public class BlockMove
 		}
 		for (i = 1; i <= corbel; i++)
 		{
-			if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z + i)), world.getBlockMetadata(x, y, z + i), blockName, meta))
+			if (sameBlock(world, x, y, z + i, blockName, meta))
 			{
-				if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z + i)), world.getBlockMetadata(x, y - 1, z + i), blockName, meta))
+				if (sameBlock(world, x, y - 1, z + i, blockName, meta))
 				{
 					return true;
 				}
@@ -508,9 +518,9 @@ public class BlockMove
 		}
 		for (i = 1; i <= corbel; i++)
 		{
-			if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z - i)), world.getBlockMetadata(x, y, z - i), blockName, meta))
+			if (sameBlock(world, x, y, z - i, blockName, meta))
 			{
-				if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z - i)), world.getBlockMetadata(x, y - 1, z - i), blockName, meta))
+				if (sameBlock(world, x, y - 1, z - i, blockName, meta))
 				{
 					return true;
 				}
@@ -525,19 +535,23 @@ public class BlockMove
 
 	private static boolean ceiling(World world, int x, int y, int z)
 	{
-		if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y, z)), world.getBlockMetadata(x - 1, y, z)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y, z)), world.getBlockMetadata(x + 1, y, z)).supportiveBlock)
+		if (isSupportiveBlock(world, x - 1, y, z) && 
+		        isSupportiveBlock(world, x + 1, y, z))
 		{
 			return true;
 		}
-		if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z - 1)), world.getBlockMetadata(x, y, z - 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z + 1)), world.getBlockMetadata(x, y, z + 1)).supportiveBlock)
+		if (isSupportiveBlock(world, x, y, z - 1) &&
+		isSupportiveBlock(world, x, y, z + 1))
 		{
 			return true;
 		}
-		if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y, z - 1)), world.getBlockMetadata(x - 1, y, z - 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y, z + 1)), world.getBlockMetadata(x + 1, y, z + 1)).supportiveBlock)
+		if (isSupportiveBlock(world, x - 1, y, z - 1) &&
+		    isSupportiveBlock(world, x + 1, y, z + 1))
 		{
 			return true;
 		}
-		if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y, z + 1)), world.getBlockMetadata(x - 1, y, z + 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y, z - 1)), world.getBlockMetadata(x + 1, y, z - 1)).supportiveBlock)
+		if (isSupportiveBlock(world, x - 1, y, z + 1) && 
+		        isSupportiveBlock(world, x + 1, y, z - 1))
 		{
 			return true;
 		}
@@ -550,9 +564,11 @@ public class BlockMove
 		{
 			return false;
 		}
-		if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y, z)), world.getBlockMetadata(x - 1, y, z)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y, z)), world.getBlockMetadata(x + 1, y, z)).supportiveBlock)
+		if (isSupportiveBlock(world, x - 1, y, z) &&
+		    isSupportiveBlock(world, x + 1, y, z))
 		{
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y - 1, z)), world.getBlockMetadata(x - 1, y - 1, z)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y - 1, z)), world.getBlockMetadata(x + 1, y - 1, z)).supportiveBlock)
+			if (isSupportiveBlock(world, x - 1, y - 1, z) &&
+			    isSupportiveBlock(world, x + 1, y - 1, z))
 			{
 				return true;
 			}
@@ -561,9 +577,9 @@ public class BlockMove
 				int i;
 				for (i = 2; i <= smallArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z)), world.getBlockMetadata(x - i, y, z)).supportiveBlock)
+					if (isSupportiveBlock(world, x - i, y, z))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z)), world.getBlockMetadata(x - i, y - 1, z)).supportiveBlock)
+						if (isSupportiveBlock(world, x - i, y - 1, z))
 						{
 							return true;
 						}
@@ -575,9 +591,9 @@ public class BlockMove
 				}
 				for (i = 2; i <= smallArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z)), world.getBlockMetadata(x + i, y, z)).supportiveBlock)
+					if (isSupportiveBlock(world, x + i, y, z))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y - 1, z)), world.getBlockMetadata(x + i, y - 1, z)).supportiveBlock)
+						if (isSupportiveBlock(world, x + i, y - 1, z))
 						{
 							return true;
 						}
@@ -589,9 +605,11 @@ public class BlockMove
 				}
 			}
 		}
-		if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z - 1)), world.getBlockMetadata(x, y, z - 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z + 1)), world.getBlockMetadata(x, y, z + 1)).supportiveBlock)
+		if (isSupportiveBlock(world, x, y, z - 1) && 
+		        isSupportiveBlock(world, x, y, z + 1))
 		{
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z - 1)), world.getBlockMetadata(x, y - 1, z - 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z + 1)), world.getBlockMetadata(x, y - 1, z + 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x, y - 1, z - 1) &&
+			        isSupportiveBlock(world, x, y - 1, z + 1))
 			{
 				return true;
 			}
@@ -600,9 +618,9 @@ public class BlockMove
 				int i;
 				for (i = 2; i <= smallArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z - i)), world.getBlockMetadata(x, y, z - i)).supportiveBlock)
+					if (isSupportiveBlock(world, x, y, z - i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z - i)), world.getBlockMetadata(x, y - 1, z - i)).supportiveBlock)
+						if (isSupportiveBlock(world, x, y - 1, z - i))
 						{
 							return true;
 						}
@@ -614,9 +632,9 @@ public class BlockMove
 				}
 				for (i = 2; i <= smallArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z + i)), world.getBlockMetadata(x, y, z + i)).supportiveBlock)
+					if (isSupportiveBlock(world, x, y, z + i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z + i)), world.getBlockMetadata(x, y - 1, z + i)).supportiveBlock)
+						if (isSupportiveBlock(world, x, y - 1, z + i))
 						{
 							return true;
 						}
@@ -628,9 +646,11 @@ public class BlockMove
 				}
 			}
 		}
-		if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y, z + 1)), world.getBlockMetadata(x - 1, y, z + 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y, z - 1)), world.getBlockMetadata(x + 1, y, z - 1)).supportiveBlock)
+		if (isSupportiveBlock(world, x - 1, y, z + 1) && 
+		        isSupportiveBlock(world, x + 1, y, z - 1))
 		{
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y - 1, z + 1)), world.getBlockMetadata(x - 1, y - 1, z + 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y - 1, z - 1)), world.getBlockMetadata(x + 1, y - 1, z - 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x - 1, y - 1, z + 1) &&
+			        isSupportiveBlock(world, x + 1, y - 1, z - 1))
 			{
 				return true;
 			}
@@ -639,9 +659,9 @@ public class BlockMove
 				int i;
 				for (i = 2; i <= smallArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z + i)), world.getBlockMetadata(x - i, y, z + i)).supportiveBlock)
+					if (isSupportiveBlock(world, x - i, y, z + i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z + i)), world.getBlockMetadata(x - i, y - 1, z + i)).supportiveBlock)
+						if (isSupportiveBlock(world, x - i, y - 1, z + i))
 						{
 							return true;
 						}
@@ -653,9 +673,9 @@ public class BlockMove
 				}
 				for (i = 2; i <= smallArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z - i)), world.getBlockMetadata(x + i, y, z - i)).supportiveBlock)
+					if (isSupportiveBlock(world, x + i, y, z - i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y - 1, z - i)), world.getBlockMetadata(x + i, y - 1, z - i)).supportiveBlock)
+						if (isSupportiveBlock(world, x + i, y - 1, z - i))
 						{
 							return true;
 						}
@@ -667,9 +687,11 @@ public class BlockMove
 				}
 			}
 		}
-		if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y, z + 1)), world.getBlockMetadata(x + 1, y, z + 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y, z - 1)), world.getBlockMetadata(x - 1, y, z - 1)).supportiveBlock)
+		if (isSupportiveBlock(world, x + 1, y, z + 1) && 
+		        isSupportiveBlock(world, x - 1, y, z - 1))
 		{
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y - 1, z + 1)), world.getBlockMetadata(x + 1, y - 1, z + 1)).supportiveBlock && DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y - 1, z - 1)), world.getBlockMetadata(x - 1, y - 1, z - 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x + 1, y - 1, z + 1) && 
+			        isSupportiveBlock(world, x - 1, y - 1, z - 1))
 			{
 				return true;
 			}
@@ -678,9 +700,9 @@ public class BlockMove
 				int i;
 				for (i = 2; i <= smallArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z + i)), world.getBlockMetadata(x + i, y, z + i)).supportiveBlock)
+					if (isSupportiveBlock(world, x + i, y, z + i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y - 1, z + i)), world.getBlockMetadata(x + i, y - 1, z + i)).supportiveBlock)
+						if (isSupportiveBlock(world, x + i, y - 1, z + i))
 						{
 							return true;
 						}
@@ -692,9 +714,9 @@ public class BlockMove
 				}
 				for (i = 2; i <= smallArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z - i)), world.getBlockMetadata(x - i, y, z - i)).supportiveBlock)
+					if (isSupportiveBlock(world, x - i, y, z - i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z - i)), world.getBlockMetadata(x - i, y - 1, z - i)).supportiveBlock)
+						if (isSupportiveBlock(world, x - i, y - 1, z - i))
 						{
 							return true;
 						}
@@ -715,16 +737,16 @@ public class BlockMove
 		{
 			return false;
 		}
-		if (!DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y + 1, z)), world.getBlockMetadata(x, y + 1, z)).supportiveBlock)
+		if (!isSupportiveBlock(world, x, y + 1, z))
 		{
 			int i;
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y + 1, z)), world.getBlockMetadata(x + 1, y + 1, z)).supportiveBlock)
+			if (isSupportiveBlock(world, x + 1, y + 1, z))
 			{
 				for (i = 1; i <= bigArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z)), world.getBlockMetadata(x - i, y, z)).supportiveBlock)
+					if (isSupportiveBlock(world, x - i, y, z))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z)), world.getBlockMetadata(x - i, y - 1, z)).supportiveBlock)
+						if (isSupportiveBlock(world, x - i, y - 1, z))
 						{
 							return true;
 						}
@@ -735,13 +757,13 @@ public class BlockMove
 					}
 				}
 			}
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y + 1, z)), world.getBlockMetadata(x - 1, y + 1, z)).supportiveBlock)
+			if (isSupportiveBlock(world, x - 1, y + 1, z))
 			{
 				for (i = 1; i <= bigArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z)), world.getBlockMetadata(x + i, y, z)).supportiveBlock)
+					if (isSupportiveBlock(world, x + i, y, z))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y - 1, z)), world.getBlockMetadata(x + i, y - 1, z)).supportiveBlock)
+						if (isSupportiveBlock(world, x + i, y - 1, z))
 						{
 							return true;
 						}
@@ -752,13 +774,13 @@ public class BlockMove
 					}
 				}
 			}
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y + 1, z + 1)), world.getBlockMetadata(x, y + 1, z + 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x, y + 1, z + 1))
 			{
 				for (i = 1; i <= bigArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z - i)), world.getBlockMetadata(x, y, z - i)).supportiveBlock)
+					if (isSupportiveBlock(world, x, y, z - i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z - i)), world.getBlockMetadata(x, y - 1, z - i)).supportiveBlock)
+						if (isSupportiveBlock(world, x, y - 1, z - i))
 						{
 							return true;
 						}
@@ -769,13 +791,13 @@ public class BlockMove
 					}
 				}
 			}
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y + 1, z - 1)), world.getBlockMetadata(x, y + 1, z - 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x, y + 1, z - 1))
 			{
 				for (i = 1; i <= bigArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y, z + i)), world.getBlockMetadata(x, y, z + i)).supportiveBlock)
+					if (isSupportiveBlock(world, x, y, z + i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z + i)), world.getBlockMetadata(x, y - 1, z + i)).supportiveBlock)
+						if (isSupportiveBlock(world, x, y - 1, z + i))
 						{
 							return true;
 						}
@@ -786,13 +808,13 @@ public class BlockMove
 					}
 				}
 			}
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y + 1, z + 1)), world.getBlockMetadata(x + 1, y + 1, z + 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x + 1, y + 1, z + 1))
 			{
 				for (i = 1; i <= bigArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z - i)), world.getBlockMetadata(x - i, y, z - i)).supportiveBlock)
+					if (isSupportiveBlock(world, x - i, y, z - i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z - i)), world.getBlockMetadata(x - i, y - 1, z - i)).supportiveBlock)
+						if (isSupportiveBlock(world, x - i, y - 1, z - i))
 						{
 							return true;
 						}
@@ -803,13 +825,13 @@ public class BlockMove
 					}
 				}
 			}
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y + 1, z - 1)), world.getBlockMetadata(x - 1, y + 1, z - 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x - 1, y + 1, z - 1))
 			{
 				for (i = 1; i <= bigArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z + i)), world.getBlockMetadata(x + i, y, z + i)).supportiveBlock)
+					if (isSupportiveBlock(world, x + i, y, z + i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y - 1, z + i)), world.getBlockMetadata(x + i, y - 1, z + i)).supportiveBlock)
+						if (isSupportiveBlock(world, x + i, y - 1, z + i))
 						{
 							return true;
 						}
@@ -820,13 +842,13 @@ public class BlockMove
 					}
 				}
 			}
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y + 1, z - 1)), world.getBlockMetadata(x + 1, y + 1, z - 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x + 1, y + 1, z - 1))
 			{
 				for (i = 1; i <= bigArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z + i)), world.getBlockMetadata(x - i, y, z + i)).supportiveBlock)
+					if (isSupportiveBlock(world, x - i, y, z + i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z + i)), world.getBlockMetadata(x - i, y - 1, z + i)).supportiveBlock)
+						if (isSupportiveBlock(world, x - i, y - 1, z + i))
 						{
 							return true;
 						}
@@ -837,13 +859,13 @@ public class BlockMove
 					}
 				}
 			}
-			if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y + 1, z + 1)), world.getBlockMetadata(x - 1, y + 1, z + 1)).supportiveBlock)
+			if (isSupportiveBlock(world, x - 1, y + 1, z + 1))
 			{
 				for (i = 1; i <= bigArc; i++)
 				{
-					if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z - i)), world.getBlockMetadata(x + i, y, z - i)).supportiveBlock)
+					if (isSupportiveBlock(world, x + i, y, z - i))
 					{
-						if (DefinitionMaps.getBlockDef(Block.blockRegistry.getNameForObject(world.getBlock(x + i, y - 1, z - i)), world.getBlockMetadata(x + i, y - 1, z - i)).supportiveBlock)
+						if (isSupportiveBlock(world, x + i, y - 1, z - i))
 						{
 							return true;
 						}
@@ -860,35 +882,35 @@ public class BlockMove
 
 	private static boolean branch(World world, int x, int y, int z, String blockName, int meta)
 	{
-		if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y - 1, z)), world.getBlockMetadata(x + 1, y - 1, z), blockName, meta))
+		if (sameBlock(world, x + 1, y - 1, z, blockName, meta))
 		{
 			return true;
 		}
-		if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y - 1, z)), world.getBlockMetadata(x - 1, y - 1, z), blockName, meta))
+		if (sameBlock(world, x - 1, y - 1, z, blockName, meta))
 		{
 			return true;
 		}
-		if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z + 1)), world.getBlockMetadata(x, y - 1, z + 1), blockName, meta))
+		if (sameBlock(world, x, y - 1, z + 1, blockName, meta))
 		{
 			return true;
 		}
-		if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z - 1)), world.getBlockMetadata(x, y - 1, z - 1), blockName, meta))
+		if (sameBlock(world, x, y - 1, z - 1, blockName, meta))
 		{
 			return true;
 		}
-		if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y - 1, z + 1)), world.getBlockMetadata(x + 1, y - 1, z + 1), blockName, meta))
+		if (sameBlock(world, x + 1, y - 1, z + 1, blockName, meta))
 		{
 			return true;
 		}
-		if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y - 1, z - 1)), world.getBlockMetadata(x - 1, y - 1, z - 1), blockName, meta))
+		if (sameBlock(world, x - 1, y - 1, z - 1, blockName, meta))
 		{
 			return true;
 		}
-		if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y - 1, z + 1)), world.getBlockMetadata(x - 1, y - 1, z + 1), blockName, meta))
+		if (sameBlock(world, x - 1, y - 1, z + 1, blockName, meta))
 		{
 			return true;
 		}
-		if (sameBlock(Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y - 1, z - 1)), world.getBlockMetadata(x + 1, y - 1, z - 1), blockName, meta))
+		if (sameBlock(world, x + 1, y - 1, z - 1, blockName, meta))
 		{
 			return true;
 		}
@@ -902,48 +924,34 @@ public class BlockMove
 			return false;
 		}
 
-		String blockName2;
-		int meta2;
 		int i;
-		String blockName3;
-		int meta3;
 		int i2;
 
 		for (i = 1; i <= tree; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z));
-			meta2 = world.getBlockMetadata(x + i, y, z);
-			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
+			if (isSupportiveBlock(world, x + i, y, z))
 			{
 				return true;
 			}
-			else if (!sameBlock(blockName, meta, blockName2, meta2))
+			else if (!sameBlock(world, x + i, y, z, blockName, meta))
 			{
 				break;
 			}
 			else
 			{
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x + i, y + 1, z));
-				meta3 = world.getBlockMetadata(x + i, y + 1, z);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x + i, y + 1, z))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x + i, y + 1, z));
-				meta3 = world.getBlockMetadata(x + i, y - 1, z);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x + i, y - 1, z))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z + 1));
-				meta3 = world.getBlockMetadata(x + i, y, z + 1);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+				if (isSupportiveBlock(world, x + i, y, z + 1))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x + i, y, z - 1));
-				meta3 = world.getBlockMetadata(x + i, y, z - 1);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+				if (isSupportiveBlock(world, x + i, y, z - 1))
 				{
 					return true;
 				}
@@ -952,39 +960,29 @@ public class BlockMove
 		
 		for (i = 1; i <= tree; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z));
-			meta2 = world.getBlockMetadata(x - i, y, z);
-			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
+		    if (isSupportiveBlock(world, x - i, y, z))
 			{
 				return true;
 			}
-			else if (!sameBlock(blockName, meta, blockName2, meta2))
+			else if (!sameBlock(world, x - i, y, z, blockName, meta))
 			{
 				break;
 			}
 			else
 			{
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x - i, y + 1, z));
-				meta3 = world.getBlockMetadata(x - i, y + 1, z);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x - i, y + 1, z))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x - i, y - 1, z));
-				meta3 = world.getBlockMetadata(x - i, y - 1, z);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x - i, y - 1, z))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z + 1));
-				meta3 = world.getBlockMetadata(x - i, y, z + 1);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x - i, y, z + 1))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x - i, y, z - 1));
-				meta3 = world.getBlockMetadata(x - i, y, z - 1);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x - i, y, z - 1))
 				{
 					return true;
 				}
@@ -993,39 +991,29 @@ public class BlockMove
 		
 		for (i = 1; i <= tree; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x, y, z + i));
-			meta2 = world.getBlockMetadata(x, y, z + i);
-			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
+		    if (isSupportiveBlock(world, x, y, z + i))
 			{
 				return true;
 			}
-			else if (!sameBlock(blockName, meta, blockName2, meta2))
+			else if (!sameBlock(world, x, y, z + i, blockName, meta))
 			{
 				break;
 			}
 			else
 			{
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x, y + 1, z + i));
-				meta3 = world.getBlockMetadata(x, y + 1, z + i);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x, y + 1, z + i))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z + i));
-				meta3 = world.getBlockMetadata(x, y - 1, z + i);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x, y - 1, z + i))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y, z + i));
-				meta3 = world.getBlockMetadata(x + 1, y, z + i);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x + 1, y, z + i))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y, z + i));
-				meta3 = world.getBlockMetadata(x - 1, y, z + i);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x - 1, y, z + i))
 				{
 					return true;
 				}
@@ -1034,39 +1022,29 @@ public class BlockMove
 		
 		for (i = 1; i <= tree; i++)
 		{
-			blockName2 = Block.blockRegistry.getNameForObject(world.getBlock(x, y, z - i));
-			meta2 = world.getBlockMetadata(x, y, z - i);
-			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
+		    if (isSupportiveBlock(world, x, y, z - i))
 			{
 				return true;
 			}
-			else if (!sameBlock(blockName, meta, blockName2, meta2))
+			else if (!sameBlock(world, x, y, z - i, blockName, meta))
 			{
 				break;
 			}
 			else
 			{
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x, y + 1, z - i));
-				meta3 = world.getBlockMetadata(x, y + 1, z - i);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x, y + 1, z - i))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x, y - 1, z - i));
-				meta3 = world.getBlockMetadata(x, y - 1, z - i);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x, y - 1, z - i))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x + 1, y, z - i));
-				meta3 = world.getBlockMetadata(x + 1, y, z - i);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x + 1, y, z - i))
 				{
 					return true;
 				}
-				blockName3 = Block.blockRegistry.getNameForObject(world.getBlock(x - 1, y, z - i));
-				meta3 = world.getBlockMetadata(x - 1, y, z - i);
-				if (DefinitionMaps.getBlockDef(blockName3, meta3).supportiveBlock)
+			    if (isSupportiveBlock(world, x - 1, y, z - i))
 				{
 					return true;
 				}
@@ -1074,7 +1052,17 @@ public class BlockMove
 		}
 		return false;
 	}
-
+    private static boolean sameBlock(World world, int x, int y, int z, String name, int meta)
+    {
+        BlockPos blockPos = new BlockPos(x, y, z);
+        IBlockState blockState = world.getBlockState(blockPos);
+        Block block = blockState.getBlock();
+        int blockMeta = block.getMetaFromState(blockState);
+        String blockName = Block.blockRegistry.getNameForObject(block).toString();
+    
+        return sameBlock(blockName, blockMeta, name, meta);
+    }
+        
 	private static boolean sameBlock(String blockName, int blockMetadata, String name, int meta)
 	{
 		if (blockName.equals(name))
@@ -1087,6 +1075,17 @@ public class BlockMove
 		return blockName.equals(name) && blockMetadata == meta;
 	}
 	
+    private static boolean isSupportiveBlock(World world,int x,int y,int z)
+    {
+        BlockPos blockPos = new BlockPos(x, y, z);
+        IBlockState blockState = world.getBlockState(blockPos);
+        Block block = blockState.getBlock();
+        int blockMeta = block.getMetaFromState(blockState);
+        String blockName = Block.blockRegistry.getNameForObject(block).toString();
+        
+        return DefinitionMaps.getBlockDef(blockName, blockMeta).supportiveBlock;
+    }
+
 	private static int iunno(int i)
 	{
 		while (i > 3)

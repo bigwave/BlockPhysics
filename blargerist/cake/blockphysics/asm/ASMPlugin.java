@@ -1,10 +1,11 @@
 package blargerist.cake.blockphysics.asm;
 
 import java.util.Map;
-import squeek.asmhelper.ObfHelper;
-import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
 
-@IFMLLoadingPlugin.MCVersion("1.7.10")
+import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
+import squeek.asmhelper.ObfHelper;
+
+@IFMLLoadingPlugin.MCVersion("1.8")
 @IFMLLoadingPlugin.SortingIndex(1001)
 @IFMLLoadingPlugin.TransformerExclusions("blargerist.cake.blockphysics")
 public class ASMPlugin implements IFMLLoadingPlugin

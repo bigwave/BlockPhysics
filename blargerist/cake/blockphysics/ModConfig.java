@@ -12,9 +12,9 @@ import blargerist.cake.blockphysics.util.MoveDef;
 public class ModConfig
 {
 	private static Configuration config;
-
+ 
 	public static ConfigCategory categoryMap = new ConfigCategory(null);
-
+ 
 	public static int fallRange;
 	//public static int fallRenderRange;
 	//public static int maxMovingBlocks;
