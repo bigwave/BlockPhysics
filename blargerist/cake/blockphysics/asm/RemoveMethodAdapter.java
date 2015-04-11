@@ -19,7 +19,7 @@ public class RemoveMethodAdapter extends ClassVisitor
 	@Override
 	public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions)
 	{
-		ModInfo.Log.info("visitMethod Called for method: " + name + " " + desc);
+		//ModInfo.Log.info("visitMethod Called for method: " + name + " " + desc);
 		if (name.equals(mName) && desc.equals(mDesc))
 		{
 			ModInfo.Log.info("Returning null for method: " + name + " " + desc);
