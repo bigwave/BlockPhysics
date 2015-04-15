@@ -17,7 +17,7 @@ buildscript {
 
 apply plugin: 'forge'
 
-version = "1.8-0.933"
+version = "1.8-0.934"
 group = project.projectDir.name.toLowerCase()
 archivesBaseName = "BlockPhysics" 
 minecraft {
