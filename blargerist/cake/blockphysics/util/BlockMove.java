@@ -355,7 +355,7 @@ public class BlockMove
 		for (i = 1; i <= attached; i++)
 		{
 		    BlockPos blockPos = new BlockPos(x - i, y, z);
-			blockName2 = (String) Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock());
+			blockName2 = Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock()).toString();
 			meta2 = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
 			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
 			{
@@ -370,7 +370,7 @@ public class BlockMove
 		for (i = 1; i <= attached; i++)
 		{
             BlockPos blockPos = new BlockPos(x, y, z + i);
-            blockName2 = (String) Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock());
+            blockName2 = Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock()).toString();
 			meta2 = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
 			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
 			{
@@ -385,7 +385,7 @@ public class BlockMove
 		for (i = 1; i <= attached; i++)
 		{
             BlockPos blockPos = new BlockPos(x, y, z - i);
-            blockName2 = (String) Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock());
+            blockName2 = Block.blockRegistry.getNameForObject(world.getBlockState(blockPos).getBlock()).toString();
             meta2 = world.getBlockState(blockPos).getBlock().getMetaFromState(world.getBlockState(blockPos));
 			if (DefinitionMaps.getBlockDef(blockName2, meta2).supportiveBlock)
 			{
